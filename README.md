@@ -1,5 +1,58 @@
 # NestJS Fast Revision Cheat Sheet
 
+## 📑 Table of Contents
+
+### 📚 [Overview](#overview)
+- [First Steps](#first-steps)
+- [Controllers](#controllers)
+- [Providers](#providers)
+- [Modules](#modules)
+- [Middleware](#middleware)
+- [Exception Filters](#exception-filters)
+- [Pipes](#pipes)
+- [Guards](#guards)
+- [Interceptors](#interceptors)
+- [Custom Decorators](#custom-decorators)
+
+### 🏗️ [Fundamentals](#fundamentals)
+- [Custom Providers](#custom-providers)
+- [Asynchronous Providers](#asynchronous-providers)
+- [Dynamic Modules](#dynamic-modules)
+- [Injection Scopes](#injection-scopes)
+- [Circular Dependency](#circular-dependency)
+- [Module Reference](#module-reference)
+- [Lazy-loading Modules](#lazy-loading-modules)
+- [Execution Context](#execution-context)
+- [Lifecycle Events](#lifecycle-events)
+- [Discovery Service](#discovery-service)
+- [Platform Agnosticism](#platform-agnosticism)
+- [Testing](#testing)
+
+### 🛠️ [Techniques](#techniques)
+- [Configuration](#configuration)
+- [Database](#database)
+- [Validation](#validation)
+- [Caching](#caching)
+- [Serialization](#serialization)
+- [Versioning](#versioning)
+- [Compression](#compression)
+- [HTTP Module](#http-module)
+
+### 🔒 [Security](#security)
+- [Authentication](#authentication)
+- [Authorization](#authorization)
+- [Encryption and Hashing](#encryption-and-hashing)
+- [Helmet](#helmet)
+- [CORS](#cors)
+- [CSRF Protection](#csrf-protection)
+- [Rate Limiting](#rate-limiting)
+
+### 📊 [Visual Diagrams](#visual-diagrams)
+- [Request Lifecycle Flow](#request-lifecycle-flow)
+- [Module Architecture](#module-architecture)
+
+---
+
 ## 📚 Overview
 
 ### First Steps
@@ -1162,7 +1215,9 @@ findAll() {
 }
 ```
 
-## 🔄 Request Lifecycle Flow
+## 📊 Visual Diagrams
+
+### Request Lifecycle Flow
 
 ```mermaid
 graph TD
@@ -1182,7 +1237,7 @@ graph TD
     H --> N[Global/Controller/Method Filters]
 ```
 
-## 📊 Module Architecture
+### Module Architecture
 
 ```mermaid
 graph LR
@@ -1204,5 +1259,3 @@ graph LR
     B --> D
     C --> D
 ```
-
-This cheat sheet covers the essential NestJS concepts with practical examples and explanations. Each section provides the purpose, key features, and code examples to help with quick revision and reference during development.
