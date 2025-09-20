@@ -81,6 +81,7 @@ src/
 Controllers handle incoming HTTP requests and return responses to the client.
 
 **Purpose:** Route handling, request/response management
+
 **Key Features:** Decorators for HTTP methods, parameter extraction, status codes
 
 ```typescript
@@ -114,6 +115,7 @@ export class CatsController {
 Providers are injectable classes that handle business logic and can be injected as dependencies.
 
 **Purpose:** Business logic, data access, shared functionality
+
 **Key Features:** Dependency injection, singleton pattern, custom providers
 
 ```typescript
@@ -149,6 +151,7 @@ export class CatsController {
 Modules organize and encapsulate related functionality using the `@Module()` decorator.
 
 **Purpose:** Code organization, dependency management, feature encapsulation
+
 **Key Features:** Providers, controllers, imports, exports
 
 ```typescript
@@ -177,6 +180,7 @@ export class AppModule {}
 Middleware functions execute during the request-response cycle, before route handlers.
 
 **Purpose:** Request preprocessing, logging, authentication
+
 **Key Features:** Access to request/response objects, next function
 
 ```typescript
@@ -206,6 +210,7 @@ export class AppModule implements NestModule {
 Exception filters handle unhandled exceptions and provide consistent error responses.
 
 **Purpose:** Error handling, custom error responses
+
 **Key Features:** Global/local scope, custom exception classes
 
 ```typescript
@@ -241,6 +246,7 @@ export class CatsController {}
 Pipes transform input data and validate it before it reaches route handlers.
 
 **Purpose:** Data validation, data transformation
+
 **Key Features:** Built-in pipes, custom pipes, async validation
 
 ```typescript
@@ -283,6 +289,7 @@ async create(@Body() createCatDto: CreateCatDto) {
 Guards determine whether a request should be handled by the route handler.
 
 **Purpose:** Authentication, authorization, access control
+
 **Key Features:** CanActivate interface, ExecutionContext access
 
 ```typescript
@@ -315,6 +322,7 @@ export class CatsController {}
 Interceptors bind additional logic before/after method execution and can transform results.
 
 **Purpose:** Response transformation, logging, caching, timeout handling
+
 **Key Features:** Before/after execution, result transformation
 
 ```typescript
@@ -342,6 +350,7 @@ export class CatsController {}
 Create reusable decorators for common functionality.
 
 **Purpose:** Code reusability, metadata extraction, parameter decoration
+
 **Key Features:** Parameter decorators, method decorators, class decorators
 
 ```typescript
@@ -377,6 +386,7 @@ create(@Body() createCatDto: CreateCatDto) {}
 Define providers with custom instantiation logic.
 
 **Purpose:** Custom object creation, third-party integration
+
 **Key Features:** useClass, useValue, useFactory, useExisting
 
 ```typescript
@@ -415,6 +425,7 @@ export class AppModule {}
 Providers that require async initialization.
 
 **Purpose:** Database connections, external service setup
+
 **Key Features:** useFactory with async functions, inject dependencies
 
 ```typescript
@@ -447,6 +458,7 @@ export class DatabaseModule {}
 Modules that can be configured with different options.
 
 **Purpose:** Configurable modules, library modules
+
 **Key Features:** forRoot(), forFeature(), DynamicModule interface
 
 ```typescript
@@ -482,6 +494,7 @@ export class AppModule {}
 Control the lifetime of providers.
 
 **Purpose:** Performance optimization, stateful services
+
 **Key Features:** DEFAULT, REQUEST, TRANSIENT scopes
 
 ```typescript
@@ -506,6 +519,7 @@ export class SingletonService {}
 Handle circular dependencies between providers.
 
 **Purpose:** Resolve circular imports
+
 **Key Features:** forwardRef() function
 
 ```typescript
@@ -538,6 +552,7 @@ export class CatsModule {}
 Access module's provider instances programmatically.
 
 **Purpose:** Dynamic provider resolution
+
 **Key Features:** ModuleRef service, get() method
 
 ```typescript
@@ -561,6 +576,7 @@ export class CatsService implements OnModuleInit {
 Load modules on demand to improve startup performance.
 
 **Purpose:** Performance optimization, conditional loading
+
 **Key Features:** LazyModuleLoader service
 
 ```typescript
@@ -586,6 +602,7 @@ export class CatsService {
 Access request context information in guards, interceptors, and filters.
 
 **Purpose:** Request metadata access, cross-cutting concerns
+
 **Key Features:** switchToHttp(), getRequest(), getResponse()
 
 ```typescript
@@ -608,6 +625,7 @@ export class AuthGuard {
 Hook into application lifecycle events.
 
 **Purpose:** Initialization/cleanup logic
+
 **Key Features:** OnModuleInit, OnModuleDestroy, OnApplicationBootstrap
 
 ```typescript
@@ -630,6 +648,7 @@ export class UsersService implements OnModuleInit, OnModuleDestroy {
 Discover and introspect providers, controllers, and modules.
 
 **Purpose:** Metadata introspection, dynamic behavior
+
 **Key Features:** DiscoveryService, MetadataScanner
 
 ```typescript
@@ -655,6 +674,7 @@ export class ExplorerService implements OnModuleInit {
 Support different HTTP platforms (Express, Fastify).
 
 **Purpose:** Platform flexibility
+
 **Key Features:** Platform adapters, AbstractHttpAdapter
 
 ```typescript
@@ -677,6 +697,7 @@ bootstrap();
 Comprehensive testing utilities for unit and integration tests.
 
 **Purpose:** Test automation, mocking, integration testing
+
 **Key Features:** TestingModule, mock providers, supertest
 
 ```typescript
@@ -718,6 +739,7 @@ describe('CatsController', () => {
 Manage application configuration across different environments.
 
 **Purpose:** Environment management, settings centralization
+
 **Key Features:** ConfigModule, environment variables, validation
 
 ```typescript
@@ -754,6 +776,7 @@ export class AppService {
 Database integration with TypeORM, Prisma, or Mongoose.
 
 **Purpose:** Data persistence, ORM integration
+
 **Key Features:** Repository pattern, entity definitions, migrations
 
 ```typescript
@@ -814,6 +837,7 @@ export class UsersService {
 Request validation using class-validator and class-transformer.
 
 **Purpose:** Input validation, data transformation
+
 **Key Features:** Decorators, custom validators, transform options
 
 ```typescript
@@ -851,6 +875,7 @@ async function bootstrap() {
 Implement caching for improved performance.
 
 **Purpose:** Performance optimization, response caching
+
 **Key Features:** Cache interceptor, TTL, custom cache key
 
 ```typescript
@@ -884,6 +909,7 @@ export class AppController {
 Transform response data using interceptors and class-transformer.
 
 **Purpose:** Response formatting, data hiding
+
 **Key Features:** ClassSerializerInterceptor, @Exclude, @Expose
 
 ```typescript
@@ -921,6 +947,7 @@ export class UsersController {
 API versioning strategies for backward compatibility.
 
 **Purpose:** API evolution, backward compatibility
+
 **Key Features:** URI versioning, header versioning, media type versioning
 
 ```typescript
@@ -962,6 +989,7 @@ export class CatsV2Controller {
 Enable response compression for better performance.
 
 **Purpose:** Response size reduction, bandwidth optimization
+
 **Key Features:** Gzip compression, threshold configuration
 
 ```typescript
@@ -979,6 +1007,7 @@ async function bootstrap() {
 Make HTTP requests to external services.
 
 **Purpose:** External API integration, HTTP client
+
 **Key Features:** HttpService, Axios integration, interceptors
 
 ```typescript
@@ -1011,6 +1040,7 @@ export class CatsService {
 Implement user authentication using Passport strategies.
 
 **Purpose:** User identity verification
+
 **Key Features:** JWT tokens, local strategy, session management
 
 ```typescript
@@ -1067,6 +1097,7 @@ export class AppController {
 Implement role-based access control.
 
 **Purpose:** Access control, permission management
+
 **Key Features:** Role guards, RBAC, custom authorization
 
 ```typescript
@@ -1111,6 +1142,7 @@ create(@Body() createCatDto: CreateCatDto) {
 Secure sensitive data using encryption and hashing.
 
 **Purpose:** Data security, password protection
+
 **Key Features:** bcrypt hashing, crypto encryption
 
 ```typescript
@@ -1134,6 +1166,7 @@ export class AuthService {
 Security headers for web applications.
 
 **Purpose:** Security headers, XSS protection
+
 **Key Features:** CSP, HSTS, X-Frame-Options
 
 ```typescript
@@ -1151,6 +1184,7 @@ async function bootstrap() {
 Cross-Origin Resource Sharing configuration.
 
 **Purpose:** Cross-origin requests, API access control
+
 **Key Features:** Origin whitelist, credential support
 
 ```typescript
@@ -1170,6 +1204,7 @@ async function bootstrap() {
 Cross-Site Request Forgery protection.
 
 **Purpose:** CSRF attack prevention
+
 **Key Features:** Token validation, cookie configuration
 
 ```typescript
@@ -1187,6 +1222,7 @@ async function bootstrap() {
 Implement rate limiting to prevent abuse.
 
 **Purpose:** API protection, DDoS prevention
+
 **Key Features:** Request throttling, custom limits
 
 ```typescript
