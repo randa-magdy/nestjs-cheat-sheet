@@ -554,6 +554,7 @@ An Interceptor in NestJS is like middleware that sits around your route handler 
 - Bind extra behavior (e.g., add metadata, wrap responses).
 
 **Example 1 - Logging Interceptor**
+
 Logs how long each request takes.
 ```typescript
 // logging.interceptor.ts
@@ -588,6 +589,7 @@ export class CatsController {
 ```
 
 **Example 2 - Response Transformation Interceptor**
+
 Wraps every response in a consistent format.
 ```typescript
 // transform.interceptor.ts
@@ -632,6 +634,7 @@ Response Example:
 ```
 
 **Example 3 - Error Handling Interceptor**
+
 Catch and transform errors in a consistent format.
 ```typescript
 // errors.interceptor.ts
