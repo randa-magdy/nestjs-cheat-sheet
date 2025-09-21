@@ -276,12 +276,6 @@ Pipes are classes that transform or validate incoming data before it reaches the
 
 **Example 1 - Simple Custom Validation Pipe**
 
-Install dependencies
-```bash
-npm install class-validator class-transformer
-```
-
-DTO with Validation Rules
 ```typescript
 import { PipeTransform, Injectable, ArgumentMetadata, BadRequestException } from '@nestjs/common';
 
@@ -303,6 +297,13 @@ findOne(@Param('id', CustomValidationPipe) id: string) {
 ```
 
 **Example 2 - Using class-validator & class-transformer (Recommended)**
+
+Install dependencies
+```bash
+npm install class-validator class-transformer
+```
+
+DTO with Validation Rules
 ```typescript
 import { IsString, IsInt, MinLength, Min } from 'class-validator';
 
