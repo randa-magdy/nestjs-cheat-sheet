@@ -358,6 +358,7 @@ async findOne(@Param('id', CatExistsPipe) id: string) {
 ```
 
 **Example 3 – Using Zod-based schemas**
+
 Recommend for Medium-to-large TypeScript-heavy project with GraphQL/tRPC or many complex/nested DTOs: consider Zod, especially for type inference and transformations
 
 Install Zod
