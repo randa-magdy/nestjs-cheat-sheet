@@ -355,7 +355,46 @@ export class CatExistsPipe implements PipeTransform {
 async findOne(@Param('id', CatExistsPipe) id: string) {
   return this.catsService.findOne(id);
 }
+```
 
+**Example 3 – Using Zod-based schemas**
+Recommend for Medium-to-large TypeScript-heavy project with GraphQL/tRPC or many complex/nested DTOs: consider Zod, especially for type inference and transformations
+
+Install Zod
+```bash
+npm install zod
+```
+
+Define Schema
+```typescript
+import { z } from 'zod';
+
+export const CreateCatSchema = z.object({
+  name: z.string().min(2),
+  age: z.number().int().min(1),
+});
+```
+
+Validate in Controller
+```typescript
+import { Controller, Post, Body, BadRequestException } from '@nestjs/common';
+import { CreateCatSchema } from './create-cat.schema';
+
+@Controller('cats')
+export class CatsController {
+  @Post()
+  create(@Body() body: any) {
+    const parseResult = CreateCatSchema.safeParse(body);
+
+    if (!parseResult.success) {
+      // validation failed
+      throw new BadRequestException(parseResult.error.format());
+    }
+
+    // validation passed
+    return { message: 'Cat created', cat: parseResult.data };
+  }
+}
 ```
 
 **Note:** When Enable Global ValidationPipe is applied:"
