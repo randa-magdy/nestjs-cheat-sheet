@@ -264,9 +264,9 @@ We can apply filter to catch both HTTP exceptions (e.g., NotFoundException, BadR
 
 ### Pipes
 
-Pipes transform input data and validate it before it reaches route handlers.
+Pipes are classes that transform or validate incoming data before it reaches the route handler. They ensure data integrity and reduce boilerplate in controllers.
 
-**Purpose:** `transform` or `validate` incoming data before it reaches the route handler. They ensure data integrity and reduce boilerplate in controllers
+**Purpose:** Data validation, data transformation
 
 **Key Features:** 
 - built-in pipes like ValidationPipe, ParseIntPipe, ParseUUIDPipe
