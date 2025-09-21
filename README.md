@@ -429,35 +429,114 @@ export class CatsController {
 
 ### Guards
 
-Guards determine whether a request should be handled by the route handler.
-
+- A Guard decides if a request is allowed to proceed to the controller/route handler.
+- They run befnore controllers and are often used for authentication and authorization.
+- If the guard returns true → request continues.
+- If it returns false → NestJS throws a 403 Forbidden by default.
+  
 **Purpose:** Authentication, authorization, access control
 
 **Key Features:** CanActivate interface, ExecutionContext access
 
+**Example 1 - Basic Auth Guard (Check Authorization Header)**
 ```typescript
-import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
-import { Observable } from 'rxjs';
+// auth.guard.ts
+import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-  canActivate(
-    context: ExecutionContext,
-  ): boolean | Promise<boolean> | Observable<boolean> {
+  canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest();
-    return this.validateRequest(request);
-  }
 
-  private validateRequest(request: any): boolean {
-    // Implement authentication logic
-    return request.headers.authorization !== undefined;
+    const authHeader = request.headers.authorization;
+
+    if (!authHeader) {
+      throw new UnauthorizedException('Missing authorization header');
+    }
+
+    // Example: token must start with "Bearer"
+    if (!authHeader.startsWith('Bearer ')) {
+      throw new UnauthorizedException('Invalid token format');
+    }
+
+    // Normally you would validate the token here (e.g., JWT check)
+    const token = authHeader.split(' ')[1];
+    if (token !== 'my-secret-token') {
+      throw new UnauthorizedException('Invalid token');
+    }
+
+    return true; // allow request
   }
 }
 
-// Usage
+// Apply to Controller/Route
+// cats.controller.ts
+import { Controller, Get, UseGuards } from '@nestjs/common';
+import { AuthGuard } from './auth.guard';
+
 @Controller('cats')
-@UseGuards(AuthGuard)
-export class CatsController {}
+export class CatsController {
+  @Get()
+  @UseGuards(AuthGuard) // Protect this route
+  findAll() {
+    return [{ name: 'Tom', age: 3 }];
+  }
+}
+
+```
+
+**Example 2 - Role-Based Guard**
+Sometimes we want not just authentication, but authorization (e.g., admin vs. user).
+
+```typescript
+// roles.guard.ts
+import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+
+@Injectable()
+export class RolesGuard implements CanActivate {
+  constructor(private reflector: Reflector) {}
+
+  canActivate(context: ExecutionContext): boolean {
+    const requiredRoles = this.reflector.get<string[]>('roles', context.getHandler());
+    if (!requiredRoles) {
+      return true; // no roles required
+    }
+
+    const request = context.switchToHttp().getRequest();
+    const user = request.user; // e.g., set by AuthGuard
+
+    if (!user || !requiredRoles.includes(user.role)) {
+      throw new ForbiddenException('You do not have permission for this resource');
+    }
+
+    return true;
+  }
+}
+```
+
+Use with a Custom Decorator
+```typescript// roles.decorator.ts
+import { SetMetadata } from '@nestjs/common';
+export const Roles = (...roles: string[]) => SetMetadata('roles', roles);
+```
+
+**Example 3 - Apply both guards**
+```typescript
+import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Roles } from './roles.decorator';
+import { RolesGuard } from './roles.guard';
+import { AuthGuard } from './auth.guard';
+
+@Controller('admin')
+@UseGuards(AuthGuard, RolesGuard) // Apply both guards
+export class AdminController {
+  @Get()
+  @Roles('admin') // Only admin can access
+  findAdminData() {
+    return { secret: 'Top secret admin stuff' };
+  }
+}
 ```
 
 ### Interceptors
