@@ -235,11 +235,32 @@ export class HttpExceptionFilter implements ExceptionFilter {
   }
 }
 
-// Usage
-@UseFilters(HttpExceptionFilter)
-@Controller()
-export class CatsController {}
+// Usage in cats.controller.ts
+@Post()
+@UseFilters(new HttpExceptionFilter())
+async create(@Body() createCatDto: CreateCatDto) {
+  throw new ForbiddenException();
+}
+
+// But if need to apply globally
+// main.ts
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+import { HttpExceptionFilter } from './http-exception.filter';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  app.useGlobalFilters(new HttpExceptionFilter()); // applied everywhere
+  await app.listen(3000);
+}
+bootstrap();
 ```
+
+**Note:** 
+We can apply filter to catch both HTTP exceptions (e.g., NotFoundException, BadRequestException...) and unexpected runtime errors (like TypeError, DB errors, etc.).
+- `@Catch()` : no parameter = catch ALL exceptions
+- `@Catch(HttpException)` : // catch  HTTP exceptions
+
 
 ### Pipes
 
