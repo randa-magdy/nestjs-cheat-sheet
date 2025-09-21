@@ -558,35 +558,57 @@ An Interceptor in NestJS is like middleware that sits around your route handler 
 Logs how long each request takes.
 ```typescript
 // logging.interceptor.ts
-import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
+import { Injectable, NestInterceptor, ExecutionContext, CallHandler, Logger } from '@nestjs/common';
 import { Observable, tap } from 'rxjs';
 
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {
+  private readonly logger = new Logger(LoggingInterceptor.name);
+
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+    const req = context.switchToHttp().getRequest();
+    const { method, url } = req;
     const now = Date.now();
-    const request = context.switchToHttp().getRequest();
-    console.log(`Incoming request: ${request.method} ${request.url}`);
+
+    this.logger.log(`➡️  ${method} ${url} request started`);
 
     return next.handle().pipe(
-      tap(() => console.log(`Response sent after ${Date.now() - now}ms`)),
+      tap(() => this.logger.log(`⬅️  ${method} ${url} finished in ${Date.now() - now}ms`)),
     );
   }
 }
-
-// Usage
-import { Controller, Get, UseInterceptors } from '@nestjs/common';
-import { LoggingInterceptor } from './logging.interceptor';
-
-@Controller('cats')
-@UseInterceptors(LoggingInterceptor) // applies to all routes in this controller
-export class CatsController {
-  @Get()
-  findAll() {
-    return [{ name: 'Tom', age: 3 }];
-  }
-}
 ```
+  - **Usage 1 - Apply a Logging in each controller**
+  ```typescript
+  import { Controller, Get, UseInterceptors } from '@nestjs/common';
+  import { LoggingInterceptor } from './logging.interceptor';
+  
+  @Controller('cats')
+  @UseInterceptors(LoggingInterceptor) // applies to all routes in this controller
+  export class CatsController {
+    @Get()
+    findAll() {
+      return [{ name: 'Tom', age: 3 }];
+    }
+  }
+  ```
+
+ - **Usage 2 - Apply a Logging Interceptor Globally**
+  ```typescript
+  // main.ts
+  import { NestFactory } from '@nestjs/core';
+  import { AppModule } from './app.module';
+  import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+  
+  async function bootstrap() {
+    const app = await NestFactory.create(AppModule);
+  
+    app.useGlobalInterceptors(new LoggingInterceptor()); // 🌍 global interceptor
+  
+    await app.listen(3000);
+  }
+  bootstrap();
+  ```
 
 **Example 2 - Response Transformation Interceptor**
 
