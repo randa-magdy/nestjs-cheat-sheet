@@ -358,6 +358,36 @@ async findOne(@Param('id', CatExistsPipe) id: string) {
 
 ```
 
+**Note:** When Enable Global ValidationPipe is applied:"
+- No need to use `@UsePipes()` in every controller
+- Automatically strips unknown fields
+- Automatic type conversion
+
+**Example - Enable Global ValidationPipe**
+```typescript
+// main.ts
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+import { ValidationPipe } from '@nestjs/common';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+
+  // Apply ValidationPipe globally
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,                // remove properties not in DTO
+      forbidNonWhitelisted: true,     // throw error if extra properties are sent
+      transform: true,                // automatically transform types
+      transformOptions: { enableImplicitConversion: true }, // e.g., "5" -> 5
+    }),
+  );
+
+  await app.listen(3000);
+}
+bootstrap();
+```
+
 ### Guards
 
 Guards determine whether a request should be handled by the route handler.
