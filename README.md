@@ -259,7 +259,7 @@ bootstrap();
 **Note:** 
 We can apply filter to catch both HTTP exceptions (e.g., NotFoundException, BadRequestException...) and unexpected runtime errors (like TypeError, DB errors, etc.).
 - `@Catch()` : no parameter = catch ALL exceptions
-- `@Catch(HttpException)` : // catch  HTTP exceptions
+- `@Catch(HttpException)` :  catch  HTTP exceptions
 
 
 ### Pipes
