@@ -543,30 +543,111 @@ export class AdminController {
 
 ### Interceptors
 
-Interceptors bind additional logic before/after method execution and can transform results.
+An Interceptor in NestJS is like middleware that sits around your route handler (controller method).
 
 **Purpose:** Response transformation, logging, caching, timeout handling
 
-**Key Features:** Before/after execution, result transformation
+**Key Features:** 
+- Transform the request before it reaches the handler.
+- Transform the response before it is sent back.
+- Handle extra logic like logging, caching, performance monitoring.
+- Bind extra behavior (e.g., add metadata, wrap responses).
 
+**Example 1 - Logging Interceptor**
+Logs how long each request takes.
 ```typescript
+// logging.interceptor.ts
 import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
-import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { Observable, tap } from 'rxjs';
 
 @Injectable()
-export class TransformInterceptor<T> implements NestInterceptor<T, Response<T>> {
-  intercept(context: ExecutionContext, next: CallHandler): Observable<Response<T>> {
-    return next
-      .handle()
-      .pipe(map(data => ({ data, status: 'success', timestamp: new Date().toISOString() })));
+export class LoggingInterceptor implements NestInterceptor {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+    const now = Date.now();
+    const request = context.switchToHttp().getRequest();
+    console.log(`Incoming request: ${request.method} ${request.url}`);
+
+    return next.handle().pipe(
+      tap(() => console.log(`Response sent after ${Date.now() - now}ms`)),
+    );
   }
 }
 
 // Usage
-@Controller()
+import { Controller, Get, UseInterceptors } from '@nestjs/common';
+import { LoggingInterceptor } from './logging.interceptor';
+
+@Controller('cats')
+@UseInterceptors(LoggingInterceptor) // applies to all routes in this controller
+export class CatsController {
+  @Get()
+  findAll() {
+    return [{ name: 'Tom', age: 3 }];
+  }
+}
+```
+
+**Example 2 - Response Transformation Interceptor**
+Wraps every response in a consistent format.
+```typescript
+// transform.interceptor.ts
+import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
+import { Observable, map } from 'rxjs';
+
+@Injectable()
+export class TransformInterceptor<T> implements NestInterceptor<T, { data: T }> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+    return next.handle().pipe(
+      map(data => ({
+        success: true,
+        timestamp: new Date().toISOString(),
+        data,
+      })),
+    );
+  }
+}
+
+// Usage
+import { Controller, Get, UseInterceptors } from '@nestjs/common';
+import { TransformInterceptor } from './transform.interceptor';
+
+@Controller('dogs')
 @UseInterceptors(TransformInterceptor)
-export class CatsController {}
+export class DogsController {
+  @Get()
+  findAll() {
+    return [{ name: 'Spike', breed: 'Bulldog' }];
+  }
+}
+```
+Response Example:
+```json
+{
+  "success": true,
+  "timestamp": "2025-09-21T07:00:00.000Z",
+  "data": [
+    { "name": "Spike", "breed": "Bulldog" }
+  ]
+}
+```
+
+**Example 3 - Error Handling Interceptor**
+Catch and transform errors in a consistent format.
+```typescript
+// errors.interceptor.ts
+import { Injectable, NestInterceptor, ExecutionContext, CallHandler, BadGatewayException } from '@nestjs/common';
+import { Observable, catchError, throwError } from 'rxjs';
+
+@Injectable()
+export class ErrorsInterceptor implements NestInterceptor {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+    return next.handle().pipe(
+      catchError(err =>
+        throwError(() => new BadGatewayException('Something went wrong: ' + err.message)),
+      ),
+    );
+  }
+}
 ```
 
 ### Custom Decorators
