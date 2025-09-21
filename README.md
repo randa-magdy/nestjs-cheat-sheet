@@ -572,9 +572,10 @@ export class LoggingInterceptor implements NestInterceptor {
 
     this.logger.log(`➡️  ${method} ${url} request started`);
 
-    return next.handle().pipe(
+    return next.handle().pipe( 
       tap(() => this.logger.log(`⬅️  ${method} ${url} finished in ${Date.now() - now}ms`)),
     );
+     // next.handle() → executes the controller method , .pipe(tap(...)) → logs after the response has been produced.
   }
 }
 ```
@@ -621,7 +622,7 @@ import { Observable, map } from 'rxjs';
 @Injectable()
 export class TransformInterceptor<T> implements NestInterceptor<T, { data: T }> {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    return next.handle().pipe(
+    return next.handle().pipe(  
       map(data => ({
         success: true,
         timestamp: new Date().toISOString(),
