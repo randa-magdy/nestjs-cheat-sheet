@@ -266,43 +266,95 @@ We can apply filter to catch both HTTP exceptions (e.g., NotFoundException, BadR
 
 Pipes transform input data and validate it before it reaches route handlers.
 
-**Purpose:** Data validation, data transformation
+**Purpose:** `transform` or `validate` incoming data before it reaches the route handler. They ensure data integrity and reduce boilerplate in controllers
 
-**Key Features:** Built-in pipes, custom pipes, async validation
+**Key Features:** 
+- built-in pipes like ValidationPipe, ParseIntPipe, ParseUUIDPipe
+- You can write custom pipes to fit your logic.
+- Async Pipe : Validate against external services or databases (e.g., check if ID exists)
+- Pipes can be applied: Per-parameter , Per-route , Globally
 
+**Example 1 - Simple Custom Validation Pipe**
+
+Install dependencies
+```bash
+npm install class-validator class-transformer
+```
+
+DTO with Validation Rules
 ```typescript
 import { PipeTransform, Injectable, ArgumentMetadata, BadRequestException } from '@nestjs/common';
 
 @Injectable()
-export class ValidationPipe implements PipeTransform {
+export class CustomValidationPipe implements PipeTransform {
   transform(value: any, metadata: ArgumentMetadata) {
-    if (!this.isValid(value)) {
-      throw new BadRequestException('Validation failed');
+    if (value === null || value === undefined || value === '') {
+      throw new BadRequestException(`Validation failed for ${metadata.data}`);
     }
     return value;
   }
-
-  private isValid(value: any): boolean {
-    return value !== undefined && value !== null;
-  }
 }
 
-// Usage with class-validator
-import { IsString, IsInt } from 'class-validator';
+// Usage per parameter
+@Get(':id')
+findOne(@Param('id', CustomValidationPipe) id: string) {
+  return `Cat with id ${id}`;
+}
+```
+
+**Example 2 - Using class-validator & class-transformer (Recommended)**
+```typescript
+import { IsString, IsInt, MinLength, Min } from 'class-validator';
 
 export class CreateCatDto {
   @IsString()
+  @MinLength(3)
   name: string;
 
   @IsInt()
+  @Min(1)
   age: number;
 }
 
-@Post()
-@UsePipes(ValidationPipe)
-async create(@Body() createCatDto: CreateCatDto) {
-  // Validated data
+// Usage in Controller
+import { Body, Controller, Post, UsePipes, ValidationPipe } from '@nestjs/common';
+
+@Controller('cats')
+export class CatsController {
+  @Post()
+  @UsePipes(new ValidationPipe({ transform: true })) // transform: true automatically converts types (e.g., "5" → 5).
+  async create(@Body() createCatDto: CreateCatDto) {
+    return { message: 'Cat created', data: createCatDto };
+  }
 }
+
+// Note: Validation rules are applied from class-validator
+```
+
+**Example 3 – Async Pipe (check DB existence)**
+```typescript
+import { Injectable, PipeTransform, BadRequestException } from '@nestjs/common';
+import { CatsService } from './cats.service';
+
+@Injectable()
+export class CatExistsPipe implements PipeTransform {
+  constructor(private readonly catsService: CatsService) {}
+
+  async transform(id: string) {
+    const cat = await this.catsService.findOne(id);
+    if (!cat) {
+      throw new BadRequestException(`Cat with ID ${id} does not exist`);
+    }
+    return id;
+  }
+}
+
+// Usage
+@Get(':id')
+async findOne(@Param('id', CatExistsPipe) id: string) {
+  return this.catsService.findOne(id);
+}
+
 ```
 
 ### Guards
