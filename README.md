@@ -679,35 +679,113 @@ export class ErrorsInterceptor implements NestInterceptor {
 ### Custom Decorators
 
 Create reusable decorators for common functionality.
+(They’re built using createParamDecorator or SetMetadata.)
 
-**Purpose:** Code reusability, metadata extraction, parameter decoration
+**Purpose:** Code reusability, metadata extraction, parameter decoration, Encapsulate logic in one place
 
 **Key Features:** Parameter decorators, method decorators, class decorators
 
+**Example 1 - Custom Request Data Decorator**
+
+Want to get the user from request in multiple controllers. Instead of doing:
 ```typescript
+@Get()
+getProfile(@Req() req) {
+  return req.user;
+}
+```
+Create a custom decorator:
+```typescript
+// user.decorator.ts
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 
 export const User = createParamDecorator(
-  (data: unknown, ctx: ExecutionContext) => {
+  (data: string | undefined, ctx: ExecutionContext) => {
     const request = ctx.switchToHttp().getRequest();
-    return request.user;
+    const user = request.user;
+
+    // If a specific property is requested -> return it
+    return data ? user?.[data] : user;
   },
 );
 
 // Usage
-@Get()
-async findAll(@User() user: UserEntity) {
-  return this.catsService.findAll(user.id);
+@Get('profile')
+getProfile(@User() user) {
+  return user; // entire user object
 }
 
-// Method decorator
+@Get('profile/name')
+getUserName(@User('name') name: string) {
+  return name; // only the "name" property
+}
+
+// Benefit: No need to repeat req.user everywhere.
+```
+
+**Example 2 - Custom Role Metadata Decorator**
+
+Want to restrict routes by roles (admin, user)
+```typescript
+// roles.decorator.ts
 import { SetMetadata } from '@nestjs/common';
 
-export const Roles = (...roles: string[]) => SetMetadata('roles', roles);
+export const ROLES_KEY = 'roles';
+export const Roles = (...roles: string[]) => SetMetadata(ROLES_KEY, roles);
 
-@Post()
-@Roles('admin')
-create(@Body() createCatDto: CreateCatDto) {}
+// Usage in Controller
+@Controller('cats')
+export class CatsController {
+  @Get()
+  @Roles('admin') // add custom metadata
+  findAll() {
+    return 'Only admin can see this';
+  }
+}
+```
+
+Then use a Guard to read that metadata:
+```typescript
+import { CanActivate, ExecutionContext, Injectable, Reflector } from '@nestjs/common';
+
+@Injectable()
+export class RolesGuard implements CanActivate {
+  constructor(private reflector: Reflector) {}
+
+  canActivate(context: ExecutionContext): boolean {
+    const roles = this.reflector.get<string[]>('roles', context.getHandler());
+    if (!roles) return true;
+
+    const request = context.switchToHttp().getRequest();
+    const user = request.user;
+    return roles.includes(user.role);
+  }
+}
+
+// Benefit: Declarative role-based access control.
+```
+
+**Example 3 - Custom Header Extractor**
+
+If you often need a custom header (e.g., x-api-key):
+```typescript
+// api-key.decorator.ts
+import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+
+export const ApiKey = createParamDecorator(
+  (data: unknown, ctx: ExecutionContext) => {
+    const request = ctx.switchToHttp().getRequest();
+    return request.headers['x-api-key'];
+  },
+);
+
+// Usage
+@Get('secure-data')
+getSecureData(@ApiKey() apiKey: string) {
+  return { apiKey };
+}
+
+// Benefit: Cleaner controller code, no repeating header logic.
 ```
 
 ## 🏗️ Fundamentals
