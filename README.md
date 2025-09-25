@@ -1166,7 +1166,7 @@ export class DatabaseModule {}
 
 Module that can be configured at runtime and return different providers depending on how it’s imported.
 
-Dynamic module = can return different providers depending on passed options.
+`Dynamic module` = can return different providers depending on passed options.
 
 **Purpose:** Configurable modules, library modules
 
