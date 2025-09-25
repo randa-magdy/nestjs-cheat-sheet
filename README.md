@@ -857,6 +857,7 @@ Define providers with custom instantiation logic.
 **Key Features:** useClass, useValue, useFactory, useExisting
 
 **NestJS has 6 types of providers:**
+
 1- Standard Provider (Class)
 2- useValue
 3- Non-class Token (with @Inject)
