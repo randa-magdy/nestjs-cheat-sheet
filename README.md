@@ -1164,15 +1164,30 @@ export class DatabaseModule {}
 
 ### Dynamic Modules
 
-Modules that can be configured with different options.
+Module that can be configured at runtime and return different providers depending on how it’s imported.
+
+Dynamic module = can return different providers depending on passed options.
 
 **Purpose:** Configurable modules, library modules
 
 **Key Features:** forRoot(), forFeature(), DynamicModule interface
 
-```typescript
-import { DynamicModule, Module } from '@nestjs/common';
+When to use :
+  - Reusable packages (e.g., ConfigModule, TypeOrmModule, JwtModule).
+  - You need to pass configuration options (e.g., API keys, DB connection).
+  - You want to support forRoot (sync config) or forRootAsync (async config, e.g., from .env).
 
+**Example 1 - Config Module (with forRoot → sync options)**
+
+```typescript
+// config.module.ts
+import { Module, DynamicModule, Global } from '@nestjs/common';
+
+export interface ConfigModuleOptions {
+  folder: string;
+}
+
+@Global() // make it globally available
 @Module({})
 export class ConfigModule {
   static forRoot(options: ConfigModuleOptions): DynamicModule {
@@ -1183,19 +1198,210 @@ export class ConfigModule {
           provide: 'CONFIG_OPTIONS',
           useValue: options,
         },
-        ConfigService,
+        {
+          provide: 'CONFIG_SERVICE',
+          useFactory: (opts: ConfigModuleOptions) => {
+            return { getPath: () => `Using folder: ${opts.folder}` };
+          },
+          inject: ['CONFIG_OPTIONS'],
+        },
       ],
-      exports: [ConfigService],
-      global: options.isGlobal,
+      exports: ['CONFIG_SERVICE'],
+    };
+  }
+}
+
+// app.module.ts
+import { Module } from '@nestjs/common';
+import { ConfigModule } from './config.module';
+
+@Module({
+  imports: [ConfigModule.forRoot({ folder: './config' })],
+})
+export class AppModule {}
+
+// usage in service
+import { Injectable, Inject } from '@nestjs/common';
+
+@Injectable()
+export class AppService {
+  constructor(@Inject('CONFIG_SERVICE') private configService: any) {}
+
+  getHello() {
+    return this.configService.getPath();
+  }
+}
+
+// When you run the app, you’ll see:
+Using folder: ./config
+```
+
+**Example 2 - Config Module (with forRootAsync → async options (e.g., load from .env))**
+
+```typescript
+@Module({})
+export class ConfigModule {
+  static forRootAsync(): DynamicModule {
+    return {
+      module: ConfigModule,
+      providers: [
+        {
+          provide: 'CONFIG_SERVICE',
+          useFactory: async () => {
+            await new Promise((r) => setTimeout(r, 100)); // simulate async
+            return { apiKey: process.env.API_KEY || 'default' };
+          },
+        },
+      ],
+      exports: ['CONFIG_SERVICE'],
+    };
+  }
+}
+
+// app.module.ts
+import { Module } from '@nestjs/common';
+import { ConfigModule } from './config.module';
+import { AppService } from './app.service';
+
+@Module({
+  imports: [
+    // Here we import the module dynamically
+    ConfigModule.forRootAsync(),
+  ],
+  providers: [AppService],
+})
+export class AppModule {}
+
+// usage in service
+import { Injectable, Inject } from '@nestjs/common';
+
+@Injectable()
+export class AppService {
+  constructor(@Inject('CONFIG_SERVICE') private configService: any) {}
+
+  getHello() {
+    return `API Key from config: ${this.configService.apiKey}`;
+  }
+}
+```
+
+**Example 3 - Configurable Module Builder (Nest v9+)**
+
+Nest provides a helper (ConfigurableModuleBuilder) to avoid writing boilerplate.
+```typescript
+// config.module.ts
+import { ConfigurableModuleBuilder } from '@nestjs/common';
+
+export interface MyConfigOptions {
+  folder: string;
+}
+
+export const {
+  ConfigurableModuleClass,
+  MODULE_OPTIONS_TOKEN,
+} = new ConfigurableModuleBuilder<MyConfigOptions>()
+  .setClassMethodName('forRoot') // default method
+  .build();
+
+export class ConfigModule extends ConfigurableModuleClass {}
+
+// usage
+@Module({
+  imports: [ConfigModule.forRoot({ folder: './config' })],
+})
+export class AppModule {}
+```
+This automatically generates providers for your options, without writing all forRoot code manually.
+
+**Example 4 - Custom Method Key**
+
+You can rename forRoot to something else:
+```typescript
+export const { ConfigurableModuleClass } =
+  new ConfigurableModuleBuilder<MyConfigOptions>()
+    .setClassMethodName('register') // instead of forRoot
+    .build();
+
+// Usage
+@Module({
+  imports: [ConfigModule.register({ folder: './config' })],
+})
+export class AppModule {}
+```
+
+**Example 5 - Custom Options Factory Class**
+
+You can pass a factory class that generates options dynamically.
+```typescript
+import { Injectable } from '@nestjs/common';
+import { MyConfigOptions } from './config.module';
+
+@Injectable()
+export class ConfigFactory {
+  createOptions(): MyConfigOptions {
+    return { folder: process.env.CONFIG_PATH || './default' };
+  }
+}
+
+// Usage
+@Module({
+  imports: [
+    ConfigModule.forRootAsync({
+      useClass: ConfigFactory,
+    }),
+  ],
+})
+export class AppModule {}
+```
+
+**Example 6 - Extra Options**
+
+You can also add extra options to the generated module.
+
+```typescript
+export const {
+  ConfigurableModuleClass,
+  MODULE_OPTIONS_TOKEN,
+} = new ConfigurableModuleBuilder<MyConfigOptions>()
+  .setExtras({ isGlobal: true }, (definition, extras) => ({
+    ...definition,
+    global: extras.isGlobal,
+  }))
+  .build();
+
+// Now when importing:
+@Module({
+  imports: [ConfigModule.forRoot({ folder: './config' }, { isGlobal: true })],
+})
+export class AppModule {}
+```
+It will register the module as global.
+
+**Example 7 - Extending Auto-Generated Methods**
+
+You can extend your module with custom static methods.
+```typescript
+export class ConfigModule extends ConfigurableModuleClass {
+  static forFeature(featureName: string): DynamicModule {
+    return {
+      module: ConfigModule,
+      providers: [
+        {
+          provide: 'FEATURE_NAME',
+          useValue: featureName,
+        },
+      ],
+      exports: ['FEATURE_NAME'],
     };
   }
 }
 
 // Usage
 @Module({
-  imports: [ConfigModule.forRoot({ folder: './config' })],
+  imports: [ConfigModule.forRoot({ folder: './config' }), ConfigModule.forFeature('cats')],
 })
 export class AppModule {}
+
 ```
 
 ### Injection Scopes
