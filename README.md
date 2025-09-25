@@ -858,12 +858,12 @@ Define providers with custom instantiation logic.
 
 **NestJS has 6 types of providers:**
 
-1- Standard Provider (Class)
-2- useValue
-3- Non-class Token (with @Inject)
-4- useClass
-5- useFactory
-6- useExisting
+1. Standard Provider (Class)
+2. useValue
+3. Non-class Token (with @Inject)
+4. useClass
+5. useFactory
+6. useExisting
 
 **Standard Provider (Default)**
 
