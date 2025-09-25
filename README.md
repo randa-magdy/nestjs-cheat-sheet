@@ -788,6 +788,64 @@ getSecureData(@ApiKey() apiKey: string) {
 // Benefit: Cleaner controller code, no repeating header logic.
 ```
 
+**Example 4 - Custom Decorator with Pipe**
+
+```typescript
+// src/common/decorators/user-id.decorator.ts
+import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+
+export const UserId = createParamDecorator(
+  (data: unknown, ctx: ExecutionContext) => {
+    const request = ctx.switchToHttp().getRequest();
+    return request.params.userId; // raw userId from request params
+  },
+);
+
+// Usage with Pipe
+// src/users/users.controller.ts
+import { Controller, Get } from '@nestjs/common';
+import { UserId } from '../common/decorators/user-id.decorator';
+import { ParseIntPipe } from '@nestjs/common';
+
+@Controller('users')
+export class UsersController {
+  @Get(':userId')
+  getUser(@UserId(ParseIntPipe) userId: number) {
+    // Pipe ensures userId is parsed to number & validated
+    return { message: `User with ID ${userId} fetched successfully!` };
+  }
+}
+```
+
+**Example 5 - Composed Decorator**
+
+```typescript
+// src/common/decorators/authenticated-user.decorator.ts
+import { applyDecorators, UseGuards, SetMetadata } from '@nestjs/common';
+import { AuthGuard } from '../guards/auth.guard'; // assume we created a custom guard
+
+export function AuthenticatedUser() {
+  return applyDecorators(
+    UseGuards(AuthGuard),          // Apply authentication guard
+    SetMetadata('roles', ['user']) // Attach role metadata
+  );
+}
+
+// Usage in Controller
+// src/users/users.controller.ts
+import { Controller, Get } from '@nestjs/common';
+import { AuthenticatedUser } from '../common/decorators/authenticated-user.decorator';
+
+@Controller('users')
+export class UsersController {
+  @Get()
+  @AuthenticatedUser() // applies AuthGuard + role metadata
+  getAllUsers() {
+    return { message: 'All users fetched successfully!' };
+  }
+}
+```
+
 ## 🏗️ Fundamentals
 
 ### Custom Providers
