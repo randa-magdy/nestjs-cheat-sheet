@@ -856,35 +856,276 @@ Define providers with custom instantiation logic.
 
 **Key Features:** useClass, useValue, useFactory, useExisting
 
+**NestJS has 6 types of providers:**
+1- Standard Provider (Class)
+2- useValue
+3- Non-class Token (with @Inject)
+4- useClass
+5- useFactory
+6- useExisting
+
+**Standard Provider (Default)**
+
+When to use:
+  - Most common.
+  - Register a class as a provider. Nest will instantiate it and inject it wherever needed
+  
 ```typescript
-// Value provider
-const connectionProvider = {
-  provide: 'CONNECTION',
-  useValue: connection,
-};
+// cats.service.ts
+@Injectable()
+export class CatsService {
+  findAll() {
+    return ['cat1', 'cat2'];
+  }
+}
 
-// Factory provider
-const configServiceProvider = {
-  provide: ConfigService,
-  useFactory: () => {
-    return process.env.NODE_ENV === 'development'
-      ? new DevelopmentConfigService()
-      : new ProductionConfigService();
-  },
-};
+// app.module.ts
+@Module({
+  providers: [CatsService], // 👈 standard provider
+})
+export class AppModule {}
 
-// Class provider
-const loggerProvider = {
-  provide: Logger,
-  useClass: process.env.NODE_ENV === 'development' 
-    ? DevelopmentLogger 
-    : ProductionLogger,
+// cats.controller.ts
+@Controller('cats')
+export class CatsController {
+  constructor(private catsService: CatsService) {}
+
+  @Get()
+  getCats() {
+    return this.catsService.findAll();
+  }
+}
+
+// Benefit: Simple and automatic DI (Dependency injection). This is what you use most of the time.
+
+```
+
+**useValue – Constant or Mock**
+
+When to use:
+  - Inject constants (e.g., API keys, config objects).
+  - Replace a service with a mock (testing).
+  
+```typescript
+// cats.service.ts
+export class CatsService {
+  findAll() {
+    return ['cat1', 'cat2'];
+  }
+}
+
+// app.module.ts
+const mockCatsService = {
+  findAll: () => ['🐱 mocked cat'],
 };
 
 @Module({
-  providers: [connectionProvider, configServiceProvider, loggerProvider],
+  providers: [
+    { provide: CatsService, useValue: mockCatsService }, // overriding real service
+  ],
 })
 export class AppModule {}
+
+// cats.controller.ts
+@Controller('cats')
+export class CatsController {
+  constructor(private catsService: CatsService) {}
+
+  @Get()
+  getCats() {
+    return this.catsService.findAll();
+  }
+}
+
+// Benefit: During tests, you don’t hit DB — you just return fake values.
+
+```
+
+**Non-class Token with @Inject()**
+
+When to use:
+  - For values that are not services, e.g., database connection, string constants.
+
+```typescript
+// app.module.ts
+@Module({
+  providers: [
+    { provide: 'DB_NAME', useValue: 'my_database' },
+  ],
+})
+export class AppModule {}
+
+// cats.repo.ts
+@Injectable()
+export class CatsRepo {
+  constructor(@Inject('DB_NAME') private dbName: string) {}
+
+  getDbName() {
+    return this.dbName;
+  }
+}
+
+// cats.controller.ts
+@Controller('cats')
+export class CatsController {
+  constructor(private catsRepo: CatsRepo) {}
+
+  @Get('db')
+  getDb() {
+    return this.catsRepo.getDbName();
+  }
+}
+
+// Benefit: Injecting a string/number/object that is not a class.
+
+```
+**useClass – Swap Implementations**
+
+When to use:
+  - Choose a service implementation at runtime (e.g., dev vs prod logging).
+
+```typescript
+// logger.interface.ts
+export interface ILogger {
+  log(message: string): void;
+}
+
+// dev-logger.service.ts
+@Injectable()
+export class DevLoggerService implements ILogger {
+  log(msg: string) {
+    console.log('DEV:', msg);
+  }
+}
+
+// prod-logger.service.ts
+@Injectable()
+export class ProdLoggerService implements ILogger {
+  log(msg: string) {
+    console.log('PROD:', msg);
+  }
+}
+
+// app.module.ts
+const loggerProvider = {
+  provide: 'LOGGER',
+  useClass:
+    process.env.NODE_ENV === 'production'
+      ? ProdLoggerService
+      : DevLoggerService,
+};
+
+@Module({
+  providers: [loggerProvider],
+})
+export class AppModule {}
+
+// cats.service.ts
+@Injectable()
+export class CatsService {
+  constructor(@Inject('LOGGER') private logger: ILogger) {}
+
+  getCats() {
+    this.logger.log('Fetching cats...');
+    return ['cat1', 'cat2'];
+  }
+}
+
+// Benefit: Switch implementation automatically depending on environment.
+
+```
+
+**useFactory – Dynamic Provider**
+
+When to use:
+  - Need logic to create a service (e.g., create DB connection with config).
+  - Can depend on other providers.
+
+```typescript
+// options.provider.ts
+@Injectable()
+export class OptionsProvider {
+  get() {
+    return { host: 'localhost', port: 3306 };
+  }
+}
+
+// db.connection.ts
+export class DatabaseConnection {
+  constructor(private options: any) {}
+
+  connect() {
+    return `Connected to DB at ${this.options.host}:${this.options.port}`;
+  }
+}
+
+// app.module.ts
+const connectionProvider = {
+  provide: 'DB_CONNECTION',
+  useFactory: (options: OptionsProvider) => {
+    return new DatabaseConnection(options.get());
+  },
+  inject: [OptionsProvider], // inject OptionsProvider into factory
+};
+
+@Module({
+  providers: [connectionProvider, OptionsProvider],
+})
+export class AppModule {}
+
+// cats.service.ts
+@Injectable()
+export class CatsService {
+  constructor(@Inject('DB_CONNECTION') private db: DatabaseConnection) {}
+
+  getConnectionStatus() {
+    return this.db.connect();
+  }
+}
+
+// Benefit: Best for config-driven, runtime-created services.
+
+```
+
+**useExisting – Alias**
+
+When to use:
+  - Expose the same instance under different tokens.
+  - Useful when multiple parts of the app expect different tokens but you want a single service.
+
+```typescript
+// logger.service.ts
+@Injectable()
+export class LoggerService {
+  log(msg: string) {
+    console.log('Logger:', msg);
+  }
+}
+
+// app.module.ts
+const aliasProvider = {
+  provide: 'AppLogger',
+  useExisting: LoggerService,
+};
+
+@Module({
+  providers: [LoggerService, aliasProvider],
+})
+export class AppModule {}
+
+// cats.service.ts
+@Injectable()
+export class CatsService {
+  constructor(@Inject('AppLogger') private logger: LoggerService) {}
+
+  getCats() {
+    this.logger.log('Fetching cats...');
+    return ['cat1', 'cat2'];
+  }
+}
+
+// Benefit: Reuse one instance with multiple tokens instead of duplicating.
+
 ```
 
 ### Asynchronous Providers
