@@ -880,11 +880,11 @@ export class CatsService {
   }
 }
 
-// app.module.ts
+// cats.module.ts
 @Module({
   providers: [CatsService], // 👈 standard provider
 })
-export class AppModule {}
+export class CatsModule {}
 
 // cats.controller.ts
 @Controller('cats')
@@ -915,7 +915,7 @@ export class CatsService {
   }
 }
 
-// app.module.ts
+// cats.module.ts
 const mockCatsService = {
   findAll: () => ['🐱 mocked cat'],
 };
@@ -925,7 +925,7 @@ const mockCatsService = {
     { provide: CatsService, useValue: mockCatsService }, // overriding real service
   ],
 })
-export class AppModule {}
+export class CatsModule {}
 
 // cats.controller.ts
 @Controller('cats')
