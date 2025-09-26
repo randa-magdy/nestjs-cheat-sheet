@@ -1416,17 +1416,17 @@ But sometimes, you want a new instance per request or even per custom context.
 
 **NestJS gives you `three scopes`:**
  1. Default / Singleton (Scope.DEFAULT)
-  - One instance of the provider for the entire application.
-  - Cached and reused everywhere.
-✅ Best for stateless services (DB service, logger, config).
+    - One instance of the provider for the entire application.
+    - Cached and reused everywhere.
+  ✅ Best for stateless services (DB service, logger, config).
 
 2. Request-scoped (Scope.REQUEST)
-  - One new instance per incoming request.
-✅ Best for request-specific data (auth user, correlation ID, request context).
+    - One new instance per incoming request.
+  ✅ Best for request-specific data (auth user, correlation ID, request context).
 
 3. Transient (Scope.TRANSIENT)
-  - Every time a provider is injected, a new instance is created.
-✅ Best for utility classes that shouldn’t share state.
+    - Every time a provider is injected, a new instance is created.
+  ✅ Best for utility classes that shouldn’t share state.
 
 **Example 1 - Default (Singleton) Scope**
 
