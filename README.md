@@ -1553,33 +1553,114 @@ Useful for stateless helpers or generating temporary state.
 
 Handle circular dependencies between providers.
 
+❌ The Problem
+Circular dependency happens when Class A depends on Class B, and Class B depends on Class A.
+Without fixing it → app fails at runtime or throws Nest can't resolve dependencies....
+
 **Purpose:** Resolve circular imports
 
 **Key Features:** forwardRef() function
 
+**Example: Cats & Dogs Services**
+
 ```typescript
-import { forwardRef, Inject, Injectable } from '@nestjs/common';
+// cats.service.ts
+
+import { Injectable, forwardRef, Inject } from '@nestjs/common';
+import { DogsService } from './dogs.service';
 
 @Injectable()
 export class CatsService {
   constructor(
-    @Inject(forwardRef(() => CommonService))
-    private commonService: CommonService,
+    @Inject(forwardRef(() => DogsService)) // 👈 forwardRef fixes circular dep
+    private dogsService: DogsService,
   ) {}
+
+  getCats() {
+    return ['cat1', 'cat2'];
+  }
+
+  interactWithDogs() {
+    return `Cats interact with: ${this.dogsService.getDogs().join(', ')}`;
+  }
 }
+
+// dogs.service.ts
+
+import { Injectable, forwardRef, Inject } from '@nestjs/common';
+import { CatsService } from './cats.service';
 
 @Injectable()
-export class CommonService {
+export class DogsService {
   constructor(
-    @Inject(forwardRef(() => CatsService))
+    @Inject(forwardRef(() => CatsService)) // 👈 forwardRef fixes circular dep
     private catsService: CatsService,
   ) {}
+
+  getDogs() {
+    return ['dog1', 'dog2'];
+  }
+
+  interactWithCats() {
+    return `Dogs interact with: ${this.catsService.getCats().join(', ')}`;
+  }
 }
+```
+
+**Modules Setup**
+
+```ts
+// cats.module.ts
+
+import { Module, forwardRef } from '@nestjs/common';
+import { CatsService } from './cats.service';
+import { DogsModule } from './dogs.module';
 
 @Module({
-  imports: [forwardRef(() => CommonModule)],
+  providers: [CatsService],
+  exports: [CatsService],
+  imports: [forwardRef(() => DogsModule)], // 👈 forwardRef here too
 })
 export class CatsModule {}
+
+// dogs.module.ts
+
+import { Module, forwardRef } from '@nestjs/common';
+import { DogsService } from './dogs.service';
+import { CatsModule } from './cats.module';
+
+@Module({
+  providers: [DogsService],
+  exports: [DogsService],
+  imports: [forwardRef(() => CatsModule)], // 👈 forwardRef here too
+})
+export class DogsModule {}
+```
+
+**Usage in a Controller**
+
+```ts
+// app.controller.ts
+
+import { Controller, Get } from '@nestjs/common';
+import { CatsService } from './cats.service';
+import { DogsService } from './dogs.service';
+
+@Controller()
+export class AppController {
+  constructor(
+    private catsService: CatsService,
+    private dogsService: DogsService,
+  ) {}
+
+  @Get('cats-dogs')
+  getCatsDogsInteraction() {
+    return {
+      cats: this.catsService.interactWithDogs(),
+      dogs: this.dogsService.interactWithCats(),
+    };
+  }
+}
 ```
 
 ### Module Reference
