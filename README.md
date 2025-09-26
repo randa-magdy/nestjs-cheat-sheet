@@ -1434,7 +1434,6 @@ But sometimes, you want a new instance per request or even per custom context.
 
 **Example 1 - Default (Singleton) Scope**
 
-
 ```typescript
 // logger.service.ts
 import { Injectable } from '@nestjs/common';
@@ -1549,7 +1548,7 @@ Useful for stateless helpers or generating temporary state.
 - If service needs request context (user, requestId, tenant) → use REQUEST.
 - If service holds temporary state (builders, calculators, generators) → use TRANSIENT
   
-```
+
 ### Circular Dependency
 
 Handle circular dependencies between providers.
