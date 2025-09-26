@@ -1407,28 +1407,145 @@ export class AppModule {}
 ### Injection Scopes
 
 Control the lifetime of providers.
+By default, providers in NestJS are singleton-scoped: one instance for the whole app.
+But sometimes, you want a new instance per request or even per custom context.
 
 **Purpose:** Performance optimization, stateful services
 
 **Key Features:** DEFAULT, REQUEST, TRANSIENT scopes
 
+**NestJS gives you `three scopes`:**
+ 1. Default / Singleton (Scope.DEFAULT)
+  - One instance of the provider for the entire application.
+  - Cached and reused everywhere.
+✅ Best for stateless services (DB service, logger, config).
+
+2. Request-scoped (Scope.REQUEST)
+  - One new instance per incoming request.
+✅ Best for request-specific data (auth user, correlation ID, request context).
+
+3. Transient (Scope.TRANSIENT)
+  - Every time a provider is injected, a new instance is created.
+✅ Best for utility classes that shouldn’t share state.
+
+**Example 1 - Default (Singleton) Scope**
+
+
 ```typescript
+// logger.service.ts
+import { Injectable } from '@nestjs/common';
+
+@Injectable() // 👈 default = Singleton
+export class LoggerService {
+  private counter = 0;
+
+  log(message: string) {
+    this.counter++;
+    console.log(`[Logger] (${this.counter}) ${message}`);
+  }
+}
+
+// cats.service.ts
+import { Injectable } from '@nestjs/common';
+import { LoggerService } from '../logger.service';
+
+@Injectable()
+export class CatsService {
+  constructor(private logger: LoggerService) {}
+
+  findAll() {
+    this.logger.log('Fetching cats...');
+    return ['cat1', 'cat2'];
+  }
+}
+```
+No matter how many times you inject LoggerService, you’ll always get the same instance (counter will keep increasing).
+
+**Example 2 - Request Scope**
+
+```typescript
+// request-logger.service.ts
 import { Injectable, Scope } from '@nestjs/common';
 
-@Injectable({ scope: Scope.REQUEST })
-export class CatsService {
-  // New instance per request
+@Injectable({ scope: Scope.REQUEST }) // 👈 new instance per request
+export class RequestLoggerService {
+  private readonly createdAt = Date.now();
+
+  log(message: string) {
+    console.log(`[RequestLogger @${this.createdAt}] ${message}`);
+  }
 }
 
-@Injectable({ scope: Scope.TRANSIENT })
-export class HelperService {
-  // New instance per injection
-}
+// cats.controller.ts
+import { Controller, Get } from '@nestjs/common';
+import { RequestLoggerService } from '../request-logger.service';
 
-@Injectable() // DEFAULT scope - singleton
-export class SingletonService {}
+@Controller('cats')
+export class CatsController {
+  constructor(private logger: RequestLoggerService) {}
+
+  @Get()
+  findAll() {
+    this.logger.log('Handling GET /cats');
+    return ['cat1', 'cat2'];
+  }
+}
 ```
+Each HTTP request to /cats gets its own instance of RequestLoggerService.
+Useful for correlation IDs, request context, or per-request state.
 
+**Example 3 - Transient Scope**
+
+```typescript
+// transient.service.ts
+import { Injectable, Scope } from '@nestjs/common';
+
+@Injectable({ scope: Scope.TRANSIENT }) // 👈 always new instance
+export class TransientService {
+  private readonly id = Math.random();
+
+  getId() {
+    return this.id;
+  }
+}
+
+// cats.service.ts
+import { Injectable } from '@nestjs/common';
+import { TransientService } from '../transient.service';
+
+@Injectable()
+export class CatsService {
+  constructor(
+    private transient1: TransientService,
+    private transient2: TransientService,
+  ) {}
+
+  getIds() {
+    return {
+      id1: this.transient1.getId(),
+      id2: this.transient2.getId(),
+    };
+  }
+}
+```
+Even though TransientService is injected twice in the same class, each injection gets a new instance.
+Useful for stateless helpers or generating temporary state.
+
+**When to Use Each**
+
+| Scope                   | Behavior                      | Use cases                                         |
+| ----------------------- | ----------------------------- | ------------------------------------------------- |
+| **Singleton (default)** | One instance for app lifetime | DB service, logger, config, repositories          |
+| **Request**             | One instance per request      | Request-scoped context, auth user, correlation ID |
+| **Transient**           | New instance per injection    | Stateless helpers, utilities, temporary state     |
+
+
+**Quick Rule of Thumb**
+- 99% of services → keep default (singleton).
+- If service needs request context (user, requestId, tenant) → use REQUEST.
+- If service holds temporary state (builders, calculators, generators) → use TRANSIENT
+  
+```
 ### Circular Dependency
 
 Handle circular dependencies between providers.
