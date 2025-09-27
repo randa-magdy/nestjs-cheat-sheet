@@ -2130,6 +2130,7 @@ When stopping with `CTRL+C`:
 * Use **init hooks** (`OnModuleInit`, `OnApplicationBootstrap`) for **startup logic**.
 * Use **destroy/shutdown hooks** (`OnModuleDestroy`, `BeforeApplicationShutdown`, `OnApplicationShutdown`) for **cleanup logic**.
 
+
 ### Discovery Service
 
 
