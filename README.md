@@ -1665,29 +1665,29 @@ export class AppController {
 
 ### Module Reference
 
-In NestJS, you can inject ModuleRef (from @nestjs/core) into a service or provider. It allows you to dynamically retrieve providers at runtime, instead of relying purely on constructor injection.
+`ModuleRef` (from `@nestjs/core`) allows you to dynamically resolve, create, or manage providers at **runtime**, outside of normal constructor injection.
 
-**Benefits:**
-  - Lazily load providers (only when needed).
-  - Break circular dependency issues.
-  - Dynamically decide which provider to use.
 
-**Purpose:** Dynamic provider resolution
+**Purpose:**
 
-**Key Features:** ModuleRef service (gives access to providers dynamically), get() method
+* **Lazy load providers** only when needed.
+* **Break circular dependencies**.
+* **Runtime decision-making** (e.g., choose Stripe or PayPal).
+* **Handle request-scoped providers** manually (important in multi-tenant or job queue scenarios).
+* **Create completely new instances** outside DI.
 
-When to use:
-  - You cannot inject provider via constructor (e.g., circular dependencies).
-  - You need dynamic/lazy access to a provider based on runtime conditions.
-  - Large-scale modular apps where modules shouldn’t tightly depend on each other.
+**Key Features:**
 
-**Example**
+* **`.get()`** → retrieve an **existing singleton** instance.
+* **`.resolve()`** → resolve **scoped/transient providers** (possibly new instance per request).
+* **`.registerRequestByContextId()`** → bind a custom "request" to a given scope.
+* **`.create()`** → instantiate a provider manually, outside the DI container.
 
-Building an app that supports multiple payment providers (PayPal, Stripe).
-Normally you’d inject one provider directly.
-But what if you need to decide at runtime which provider to use based on user input or config?
 
-**Payment Providers**
+**Full Example — Payment System**
+
+**1. Payment Providers**
+
 ```ts
 // paypal.service.ts
 import { Injectable } from '@nestjs/common';
@@ -1700,17 +1700,19 @@ export class PaypalService {
 }
 
 // stripe.service.ts
-import { Injectable } from '@nestjs/common';
+import { Injectable, Scope } from '@nestjs/common';
 
-@Injectable()
+@Injectable({ scope: Scope.REQUEST }) // 👈 request-scoped
 export class StripeService {
+  private readonly sessionId = Math.floor(Math.random() * 10000);
+
   pay(amount: number) {
-    return `Paid ${amount} using Stripe`;
+    return `Paid ${amount} using Stripe (session ${this.sessionId})`;
   }
 }
 ```
 
-**Payment Module**
+**2. Payment Module**
 
 ```ts
 // payment.module.ts
@@ -1725,12 +1727,12 @@ import { StripeService } from './stripe.service';
 export class PaymentModule {}
 ```
 
-**Payment Service using ModuleRef**
+**3. Payment Service using `ModuleRef`**
 
 ```ts
 // payment.service.ts
 import { Injectable } from '@nestjs/common';
-import { ModuleRef } from '@nestjs/core';
+import { ModuleRef, ContextIdFactory } from '@nestjs/core';
 import { PaypalService } from './paypal.service';
 import { StripeService } from './stripe.service';
 
@@ -1738,23 +1740,37 @@ import { StripeService } from './stripe.service';
 export class PaymentService {
   constructor(private moduleRef: ModuleRef) {}
 
-  processPayment(method: 'paypal' | 'stripe', amount: number) {
-    if (method === 'paypal') {
-      const paypal = this.moduleRef.get(PaypalService, { strict: false });
-      return paypal.pay(amount);
+  // Using .get → existing singleton
+  usePaypal(amount: number) {
+    const paypal = this.moduleRef.get(PaypalService, { strict: false });
+    return paypal.pay(amount);
+  }
+
+  // Using .resolve → request-scoped provider
+  async useStripe(amount: number, request: any) {
+    const contextId = ContextIdFactory.create();
+    this.moduleRef.registerRequestByContextId(request, contextId);
+
+    const stripe = await this.moduleRef.resolve(StripeService, contextId);
+    return stripe.pay(amount);
+  }
+
+  // Using .create → manual instance creation
+  async useCustom(amount: number) {
+    class CustomPayment {
+      pay(value: number) {
+        return `Custom payment for ${value}`;
+      }
     }
 
-    if (method === 'stripe') {
-      const stripe = this.moduleRef.get(StripeService, { strict: false });
-      return stripe.pay(amount);
-    }
-
-    throw new Error('Invalid payment method');
+    const custom = await this.moduleRef.create(CustomPayment);
+    return custom.pay(amount);
   }
 }
 ```
 
-**App Module**
+**4. App Module**
+
 ```ts
 // app.module.ts
 import { Module } from '@nestjs/common';
@@ -1770,42 +1786,91 @@ import { AppController } from './app.controller';
 export class AppModule {}
 ```
 
-**Controller**
+
+**5. Controller**
 
 ```ts
 // app.controller.ts
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, Req } from '@nestjs/common';
 import { PaymentService } from './payment.service';
+import { Request } from 'express';
 
 @Controller()
 export class AppController {
   constructor(private paymentService: PaymentService) {}
 
-  @Get('pay')
-  pay(@Query('method') method: 'paypal' | 'stripe', @Query('amount') amount: string) {
-    return this.paymentService.processPayment(method, Number(amount));
+  @Get('paypal')
+  payPaypal(@Query('amount') amount: string) {
+    return this.paymentService.usePaypal(Number(amount));
+  }
+
+  @Get('stripe')
+  async payStripe(@Query('amount') amount: string, @Req() req: Request) {
+    return this.paymentService.useStripe(Number(amount), req);
+  }
+
+  @Get('custom')
+  async payCustom(@Query('amount') amount: string) {
+    return this.paymentService.useCustom(Number(amount));
   }
 }
 ```
 
-**Usage**
-- Request:
-```sql
-GET /pay?method=paypal&amount=100
+**Usage **
+
+**`.get()` → shared singleton**
+
+```http
+GET /paypal?amount=100
 ```
+
 Response:
+
 ```json
 "Paid 100 using PayPal"
 ```
 
-- Request:
-```sql
-GET /pay?method=stripe&amount=200
+✅ Always same instance → same behavior everywhere.
+
+
+**`.resolve()` + `.registerRequestByContextId()` → request-scoped**
+
+```http
+GET /stripe?amount=200
 ```
+
 Response:
+
 ```json
-"Paid 200 using Stripe"
+"Paid 200 using Stripe (session 4821)"
 ```
+
+* Each request gets a **different session** (`sessionId` changes).
+* Useful for request/user-specific providers.
+
+
+ **`.create()` → manual instantiation**
+
+```http
+GET /custom?amount=300
+```
+
+Response:
+
+```json
+"Custom payment for 300"
+```
+
+* Not part of DI container, no singleton — **completely new instance**.
+* Good for **utility classes** or **on-the-fly factories**.
+
+
+**When to Use:**
+
+- **`.get()`** → normal shared singletons (like constructor injection).
+- **`.resolve()`** → request-scoped or transient services.
+- **`.registerRequestByContextId()`** → when manually simulating requests (queues, background jobs).
+- **`.create()`** → when you need an object outside DI container (custom logic, factories).
   
 
 ### Lazy-loading Modules
