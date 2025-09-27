@@ -1816,7 +1816,7 @@ export class AppController {
 }
 ```
 
-**Usage **
+**Usage**
 
 **`.get()` → shared singleton**
 
