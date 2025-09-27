@@ -1927,26 +1927,208 @@ export class AuthGuard {
 
 ### Lifecycle Events
 
-Hook into application lifecycle events.
+NestJS lifecycle hooks let you run custom logic:
 
-**Purpose:** Initialization/cleanup logic
+* when a **provider/module is initialized**,
+* when it’s **about to be destroyed**,
+* or when the **whole app is bootstrapped or closed**.
 
-**Key Features:** OnModuleInit, OnModuleDestroy, OnApplicationBootstrap
+**List of Lifecycle Hooks**
 
-```typescript
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+At the **Provider/Module Level**
+
+1. `OnModuleInit` → Run logic right after module's providers are created.
+2. `OnApplicationBootstrap` → Called once all modules are initialized.
+3. `OnModuleDestroy` → Run cleanup before a module is destroyed.
+4. `OnApplicationShutdown` → Handle app shutdown (e.g., SIGINT, SIGTERM).
+
+At the **Application Lifecycle**
+
+5. `BeforeApplicationShutdown` → Run logic just before shutdown hooks.
+6. Async providers (with lifecycle hooks) → can also handle DB connections, caches, etc.
+
+**Full Examples**
+
+**1. `OnModuleInit`**
+
+Run logic after module’s providers are created.
+
+```ts
+// cats.service.ts
+import { Injectable, OnModuleInit } from '@nestjs/common';
 
 @Injectable()
-export class UsersService implements OnModuleInit, OnModuleDestroy {
+export class CatsService implements OnModuleInit {
   onModuleInit() {
-    console.log(`The module has been initialized.`);
+    console.log('✅ CatsService has been initialized!');
   }
 
-  onModuleDestroy() {
-    console.log(`The module is being destroyed.`);
+  findAll() {
+    return ['cat1', 'cat2'];
   }
 }
 ```
+
+Usage:
+
+* Initialize a DB connection.
+* Warm-up cache.
+* Preload data.
+
+**2. `OnApplicationBootstrap`**
+
+Called after **all modules** are initialized.
+
+```ts
+// app.service.ts
+import { Injectable, OnApplicationBootstrap } from '@nestjs/common';
+
+@Injectable()
+export class AppService implements OnApplicationBootstrap {
+  onApplicationBootstrap() {
+    console.log('🚀 Application bootstrap complete!');
+  }
+}
+```
+
+Usage:
+
+* Run global startup tasks (like cron jobs).
+* Initialize event listeners.
+* Send "app started" log/metric.
+
+**3. `OnModuleDestroy`**
+
+Called when a module is **destroyed** (e.g., in hot reload, testing, or shutdown).
+
+```ts
+// cats.service.ts
+import { Injectable, OnModuleDestroy } from '@nestjs/common';
+
+@Injectable()
+export class CatsService implements OnModuleDestroy {
+  onModuleDestroy() {
+    console.log('🛑 CatsService is being destroyed!');
+  }
+}
+```
+
+Usage:
+
+* Release resources.
+* Stop background jobs.
+
+**4. `OnApplicationShutdown`**
+
+Run cleanup logic during shutdown (triggered by `app.close()` or signals like `SIGINT`/`SIGTERM`).
+
+```ts
+// app.service.ts
+import { Injectable, OnApplicationShutdown } from '@nestjs/common';
+
+@Injectable()
+export class AppService implements OnApplicationShutdown {
+  onApplicationShutdown(signal?: string) {
+    console.log(`⚡ App is shutting down due to signal: ${signal}`);
+  }
+}
+```
+
+Usage:
+
+* Close DB connections.
+* Disconnect from Redis.
+* Gracefully stop workers.
+
+**5. `BeforeApplicationShutdown`**
+
+Runs **before** `OnApplicationShutdown`.
+
+```ts
+// db.service.ts
+import { Injectable, BeforeApplicationShutdown } from '@nestjs/common';
+
+@Injectable()
+export class DatabaseService implements BeforeApplicationShutdown {
+  async beforeApplicationShutdown(signal?: string) {
+    console.log(`🕐 Before shutdown: cleaning DB pools, signal = ${signal}`);
+    await new Promise((r) => setTimeout(r, 1000)); // simulate async cleanup
+  }
+}
+```
+
+Usage:
+
+* Ensure cleanup tasks **finish before shutdown**.
+* Flush logs, save last metrics, etc.
+
+**6. AppModule Lifecycle**
+
+```ts
+// app.module.ts
+import { Module, OnModuleInit, OnApplicationBootstrap, OnModuleDestroy, OnApplicationShutdown } from '@nestjs/common';
+import { CatsService } from './cats.service';
+import { AppService } from './app.service';
+
+@Module({
+  providers: [CatsService, AppService],
+})
+export class AppModule implements OnModuleInit, OnApplicationBootstrap, OnModuleDestroy, OnApplicationShutdown {
+  onModuleInit() {
+    console.log('📦 AppModule initialized!');
+  }
+
+  onApplicationBootstrap() {
+    console.log('🚀 AppModule finished bootstrapping!');
+  }
+
+  onModuleDestroy() {
+    console.log('🛑 AppModule destroyed!');
+  }
+
+  onApplicationShutdown(signal?: string) {
+    console.log(`⚡ AppModule shutdown, signal: ${signal}`);
+  }
+}
+```
+
+Usage
+
+Run app with:
+
+```bash
+npm run start:dev
+```
+
+Output when starting:
+
+```
+📦 AppModule initialized!
+✅ CatsService has been initialized!
+🚀 Application bootstrap complete!
+🚀 AppModule finished bootstrapping!
+```
+
+When stopping with `CTRL+C`:
+
+```
+🛑 CatsService is being destroyed!
+⚡ AppModule shutdown, signal: SIGINT
+⚡ App is shutting down due to signal: SIGINT
+```
+
+**When to Use Lifecycle Hooks**
+
+* **OnModuleInit** → Provider/module setup (e.g., DB init, cache warm-up).
+* **OnApplicationBootstrap** → Global startup (e.g., cron jobs, metrics, message queues).
+* **OnModuleDestroy** → Free resources inside a module.
+* **BeforeApplicationShutdown** → Final tasks before shutdown (save logs, flush cache).
+* **OnApplicationShutdown** → Cleanup after shutdown triggered (close DB/Redis, kill workers).
+
+**In short:**
+
+* Use **init hooks** (`OnModuleInit`, `OnApplicationBootstrap`) for **startup logic**.
+* Use **destroy/shutdown hooks** (`OnModuleDestroy`, `BeforeApplicationShutdown`, `OnApplicationShutdown`) for **cleanup logic**.
 
 ### Discovery Service
 
