@@ -1665,27 +1665,148 @@ export class AppController {
 
 ### Module Reference
 
-Access module's provider instances programmatically.
+In NestJS, you can inject ModuleRef (from @nestjs/core) into a service or provider. It allows you to dynamically retrieve providers at runtime, instead of relying purely on constructor injection.
+
+**Benefits:**
+  - Lazily load providers (only when needed).
+  - Break circular dependency issues.
+  - Dynamically decide which provider to use.
 
 **Purpose:** Dynamic provider resolution
 
-**Key Features:** ModuleRef service, get() method
+**Key Features:** ModuleRef service (gives access to providers dynamically), get() method
 
-```typescript
+When to use:
+  - You cannot inject provider via constructor (e.g., circular dependencies).
+  - You need dynamic/lazy access to a provider based on runtime conditions.
+  - Large-scale modular apps where modules shouldn’t tightly depend on each other.
+
+**Example**
+
+Building an app that supports multiple payment providers (PayPal, Stripe).
+Normally you’d inject one provider directly.
+But what if you need to decide at runtime which provider to use based on user input or config?
+
+**Payment Providers**
+```ts
+// paypal.service.ts
 import { Injectable } from '@nestjs/common';
-import { ModuleRef } from '@nestjs/core';
 
 @Injectable()
-export class CatsService implements OnModuleInit {
-  private catsService: CatsService;
-  
-  constructor(private moduleRef: ModuleRef) {}
+export class PaypalService {
+  pay(amount: number) {
+    return `Paid ${amount} using PayPal`;
+  }
+}
 
-  onModuleInit() {
-    this.catsService = this.moduleRef.get(CatsService);
+// stripe.service.ts
+import { Injectable } from '@nestjs/common';
+
+@Injectable()
+export class StripeService {
+  pay(amount: number) {
+    return `Paid ${amount} using Stripe`;
   }
 }
 ```
+
+**Payment Module**
+
+```ts
+// payment.module.ts
+import { Module } from '@nestjs/common';
+import { PaypalService } from './paypal.service';
+import { StripeService } from './stripe.service';
+
+@Module({
+  providers: [PaypalService, StripeService],
+  exports: [PaypalService, StripeService],
+})
+export class PaymentModule {}
+```
+
+**Payment Service using ModuleRef**
+
+```ts
+// payment.service.ts
+import { Injectable } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
+import { PaypalService } from './paypal.service';
+import { StripeService } from './stripe.service';
+
+@Injectable()
+export class PaymentService {
+  constructor(private moduleRef: ModuleRef) {}
+
+  processPayment(method: 'paypal' | 'stripe', amount: number) {
+    if (method === 'paypal') {
+      const paypal = this.moduleRef.get(PaypalService, { strict: false });
+      return paypal.pay(amount);
+    }
+
+    if (method === 'stripe') {
+      const stripe = this.moduleRef.get(StripeService, { strict: false });
+      return stripe.pay(amount);
+    }
+
+    throw new Error('Invalid payment method');
+  }
+}
+```
+
+**App Module**
+```ts
+// app.module.ts
+import { Module } from '@nestjs/common';
+import { PaymentModule } from './payment.module';
+import { PaymentService } from './payment.service';
+import { AppController } from './app.controller';
+
+@Module({
+  imports: [PaymentModule],
+  providers: [PaymentService],
+  controllers: [AppController],
+})
+export class AppModule {}
+```
+
+**Controller**
+
+```ts
+// app.controller.ts
+import { Controller, Get, Query } from '@nestjs/common';
+import { PaymentService } from './payment.service';
+
+@Controller()
+export class AppController {
+  constructor(private paymentService: PaymentService) {}
+
+  @Get('pay')
+  pay(@Query('method') method: 'paypal' | 'stripe', @Query('amount') amount: string) {
+    return this.paymentService.processPayment(method, Number(amount));
+  }
+}
+```
+
+**Usage**
+- Request:
+```sql
+GET /pay?method=paypal&amount=100
+```
+Response:
+```json
+"Paid 100 using PayPal"
+```
+
+- Request:
+```sql
+GET /pay?method=stripe&amount=200
+```
+Response:
+```json
+"Paid 200 using Stripe"
+```
+  
 
 ### Lazy-loading Modules
 
