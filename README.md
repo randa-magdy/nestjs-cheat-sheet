@@ -2132,30 +2132,256 @@ When stopping with `CTRL+C`:
 
 ### Discovery Service
 
-Discover and introspect providers, controllers, and modules.
 
-**Purpose:** Metadata introspection, dynamic behavior
+NestJS provides the **DiscoveryService** (via `@nestjs/core`) that allows you to:
 
-**Key Features:** DiscoveryService, MetadataScanner
+1. **Discover providers and controllers** at runtime.
+2. **Extract metadata** (from decorators or reflection) from them.
 
-```typescript
+This is often used in advanced libraries like **event systems, validation, logging, monitoring, or custom decorators**.
+
+
+**Setup**
+
+Install `@nestjs/core` (already included in every Nest app).
+Import `DiscoveryModule` from `@nestjs/core`.
+
+```ts
+// app.module.ts
+import { Module } from '@nestjs/common';
+import { DiscoveryModule } from '@nestjs/core';
+import { AppService } from './app.service';
+import { CatsController } from './cats.controller';
+
+@Module({
+  imports: [DiscoveryModule], // 👈 required
+  providers: [AppService],
+  controllers: [CatsController],
+})
+export class AppModule {}
+```
+
+
+**Example 1 - Discovering Providers and Controllers**
+
+```ts
+// app.service.ts
 import { Injectable, OnModuleInit } from '@nestjs/common';
-import { DiscoveryService, MetadataScanner } from '@nestjs/core';
+import { DiscoveryService } from '@nestjs/core';
 
 @Injectable()
-export class ExplorerService implements OnModuleInit {
-  constructor(
-    private discoveryService: DiscoveryService,
-    private metadataScanner: MetadataScanner,
-  ) {}
+export class AppService implements OnModuleInit {
+  constructor(private readonly discovery: DiscoveryService) {}
 
-  onModuleInit() {
-    const providers = this.discoveryService.getProviders();
-    const controllers = this.discoveryService.getControllers();
+  async onModuleInit() {
+    // Discover all providers
+    const providers = await this.discovery.getProviders();
+    console.log('✅ Providers found:', providers.length);
+
+    // Discover all controllers
+    const controllers = await this.discovery.getControllers();
+    console.log('✅ Controllers found:', controllers.length);
+
+    // Example: print provider names
+    providers.forEach((wrapper) => {
+      if (wrapper.instance) {
+        console.log('➡️ Provider:', wrapper.instance.constructor.name);
+      }
+    });
+
+    // Example: print controller names
+    controllers.forEach((wrapper) => {
+      if (wrapper.instance) {
+        console.log('➡️ Controller:', wrapper.instance.constructor.name);
+      }
+    });
   }
 }
 ```
 
+Output on startup:
+
+```
+✅ Providers found: 2
+➡️ Provider: AppService
+✅ Controllers found: 1
+➡️ Controller: CatsController
+```
+
+👉 **Benefit**: You can dynamically discover all providers/controllers without hardcoding. Useful for building **plugin systems** or **auto-registration**.
+
+
+**Example 2 - Extracting Metadata from Decorators**
+
+Let’s say we want a custom decorator `@Loggable()` that marks methods for logging.
+
+```ts
+// loggable.decorator.ts
+import { SetMetadata } from '@nestjs/common';
+
+export const LOGGABLE_KEY = 'loggable';
+export const Loggable = () => SetMetadata(LOGGABLE_KEY, true);
+```
+
+Apply it to a controller:
+
+```ts
+// cats.controller.ts
+import { Controller, Get } from '@nestjs/common';
+import { Loggable } from './loggable.decorator';
+
+@Controller('cats')
+export class CatsController {
+  @Get()
+  @Loggable()
+  findAll() {
+    return ['cat1', 'cat2'];
+  }
+}
+```
+
+Now discover it:
+
+```ts
+// app.service.ts
+import { Injectable, OnModuleInit } from '@nestjs/common';
+import { DiscoveryService, Reflector } from '@nestjs/core';
+import { LOGGABLE_KEY } from './loggable.decorator';
+
+@Injectable()
+export class AppService implements OnModuleInit {
+  constructor(
+    private readonly discovery: DiscoveryService,
+    private readonly reflector: Reflector,
+  ) {}
+
+  async onModuleInit() {
+    const controllers = await this.discovery.getControllers();
+
+    controllers.forEach((wrapper) => {
+      const { instance } = wrapper;
+      if (!instance) return;
+
+      const prototype = Object.getPrototypeOf(instance);
+      const methods = Object.getOwnPropertyNames(prototype);
+
+      methods.forEach((methodName) => {
+        const method = prototype[methodName];
+        if (typeof method === 'function') {
+          const isLoggable = this.reflector.get<boolean>(
+            LOGGABLE_KEY,
+            method,
+          );
+          if (isLoggable) {
+            console.log(`📝 Found loggable method: ${instance.constructor.name}.${methodName}()`);
+          }
+        }
+      });
+    });
+  }
+}
+```
+
+Output:
+
+```
+📝 Found loggable method: CatsController.findAll()
+```
+
+**Benefit**:
+
+* Dynamically scan and extract metadata.
+* Useful for **custom logging**, **authorization decorators**, **event listeners**, or **analytics**.
+
+
+**Example 3 - Real-world Use Case – Event System**
+
+You can build an event bus where methods decorated with `@OnEvent('something')` get auto-registered. DiscoveryService finds them at runtime and wires them up.
+
+```ts
+// events.decorator.ts
+import { SetMetadata } from '@nestjs/common';
+
+export const EVENT_HANDLER = 'event_handler';
+export const OnEvent = (event: string) => SetMetadata(EVENT_HANDLER, event);
+```
+
+```ts
+// cats.controller.ts
+import { Controller } from '@nestjs/common';
+import { OnEvent } from './events.decorator';
+
+@Controller('cats')
+export class CatsController {
+  @OnEvent('cat.created')
+  handleCatCreated() {
+    console.log('🐱 A cat was created!');
+  }
+}
+```
+
+```ts
+// event-scanner.service.ts
+import { Injectable, OnModuleInit } from '@nestjs/common';
+import { DiscoveryService, Reflector } from '@nestjs/core';
+import { EVENT_HANDLER } from './events.decorator';
+
+@Injectable()
+export class EventScannerService implements OnModuleInit {
+  constructor(
+    private readonly discovery: DiscoveryService,
+    private readonly reflector: Reflector,
+  ) {}
+
+  async onModuleInit() {
+    const providers = await this.discovery.getProviders();
+
+    providers.forEach((wrapper) => {
+      const { instance } = wrapper;
+      if (!instance) return;
+
+      const prototype = Object.getPrototypeOf(instance);
+      const methods = Object.getOwnPropertyNames(prototype);
+
+      methods.forEach((methodName) => {
+        const method = prototype[methodName];
+        if (typeof method === 'function') {
+          const event = this.reflector.get<string>(EVENT_HANDLER, method);
+          if (event) {
+            console.log(`📡 Found event handler for "${event}": ${instance.constructor.name}.${methodName}`);
+            // Here you could register it into your EventBus
+          }
+        }
+      });
+    });
+  }
+}
+```
+
+Output:
+
+```
+📡 Found event handler for "cat.created": CatsController.handleCatCreated
+```
+
+**Benefit**:
+
+* Build **dynamic event-driven systems**.
+* No need to manually wire handlers.
+
+# 🚀 Summary
+
+* `DiscoveryService.getProviders()` → Find providers at runtime.
+* `DiscoveryService.getControllers()` → Find controllers at runtime.
+* Use `Reflector` + `SetMetadata` → Extract custom metadata (from decorators).
+
+**When to use**:
+
+* Framework-style features (logging, monitoring, analytics).
+* Auto-discovering event handlers, subscribers, or jobs.
+* Building reusable NestJS modules that scan the app dynamically.
+
+  
 ### Platform Agnosticism
 
 Support different HTTP platforms (Express, Fastify).
