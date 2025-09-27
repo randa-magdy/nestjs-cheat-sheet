@@ -1898,6 +1898,9 @@ export class CatsService {
   }
 }
 ```
+**So in short:**
+  - Eager loading → default, for common modules (users, auth, products).
+  - Lazy loading → for heavy, rarely used, or conditional features.
 
 ### Execution Context
 
