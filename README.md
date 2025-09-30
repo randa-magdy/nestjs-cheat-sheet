@@ -2709,7 +2709,7 @@ Events serve as a great way to decouple various aspects of your application, sin
 
 **Use Cases:** Notifications, Logging / Auditing, Analytics / Metrics, Decoupled business logic
 
-**Full Example**
+**Full Example:**
 
 **1. Install Package**
 
