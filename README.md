@@ -2698,6 +2698,158 @@ export class CatsV2Controller {
 }
 ```
 
+### Event 
+
+Events serve as a great way to decouple various aspects of your application, since a single event can have multiple listeners that do not depend on each other.
+
+**Purpose:** Decoupling, Asynchronous operations, Scalability 
+
+**Key Features:** EventEmitter2.emit('eventName', payload), @OnEvent('eventName')
+
+**Use Cases:** Notifications, Logging / Auditing, Analytics / Metrics, Decoupled business logic
+
+**Full Example**
+
+**1. Install Package**
+
+NestJS uses a wrapper around [`eventemitter3`](https://www.npmjs.com/package/eventemitter3):
+
+```bash
+npm install @nestjs/event-emitter
+```
+
+**2. Setup `EventEmitterModule` in `AppModule`**
+
+```ts
+// app.module.ts
+import { Module } from '@nestjs/common';
+import { EventEmitterModule } from '@nestjs/event-emitter';
+import { UsersModule } from './users/users.module';
+
+@Module({
+  imports: [
+    EventEmitterModule.forRoot(), // globally enable event emitter
+    UsersModule,
+  ],
+})
+export class AppModule {}
+```
+
+**3. Create an Event Interface (optional but recommended)**
+
+```ts
+// users/events/user-created.event.ts
+export class UserCreatedEvent {
+  constructor(
+    public readonly userId: number,
+    public readonly email: string,
+  ) {}
+}
+```
+
+**4. Create a Service that Emits Events**
+
+```ts
+// users/users.service.ts
+import { Injectable } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { UserCreatedEvent } from './events/user-created.event';
+
+@Injectable()
+export class UsersService {
+  constructor(private readonly eventEmitter: EventEmitter2) {}
+
+  async createUser(email: string) {
+    const newUser = { id: Date.now(), email }; // simulate DB save
+
+    // Emit an event
+    this.eventEmitter.emit(
+      'user.created', // event name
+      new UserCreatedEvent(newUser.id, newUser.email),
+    );
+
+    return newUser;
+  }
+}
+```
+
+**5. Create an Event Listener**
+
+```ts
+// users/listeners/user-created.listener.ts
+import { Injectable, Logger } from '@nestjs/common';
+import { OnEvent } from '@nestjs/event-emitter';
+import { UserCreatedEvent } from '../events/user-created.event';
+
+@Injectable()
+export class UserCreatedListener {
+  private readonly logger = new Logger(UserCreatedListener.name);
+
+  @OnEvent('user.created') // listens to 'user.created' events
+  handleUserCreatedEvent(event: UserCreatedEvent) {
+    this.logger.log(`New user created: ${event.email} (ID: ${event.userId})`);
+
+    // Example: send welcome email, call external service, etc.
+  }
+}
+```
+
+**6. Hook it up in Module**
+
+```ts
+// users/users.module.ts
+import { Module } from '@nestjs/common';
+import { UsersService } from './users.service';
+import { UserCreatedListener } from './listeners/user-created.listener';
+
+@Module({
+  providers: [UsersService, UserCreatedListener],
+  exports: [UsersService],
+})
+export class UsersModule {}
+```
+
+**7. Create a Controller to Trigger Events**
+
+```ts
+// users/users.controller.ts
+import { Controller, Post, Body } from '@nestjs/common';
+import { UsersService } from './users.service';
+
+@Controller('users')
+export class UsersController {
+  constructor(private readonly usersService: UsersService) {}
+
+  @Post()
+  async createUser(@Body('email') email: string) {
+    return this.usersService.createUser(email);
+  }
+}
+```
+
+**8. Example Flow**
+
+1. HTTP request:
+
+```http
+POST /users
+Content-Type: application/json
+
+{
+  "email": "randa@example.com"
+}
+```
+
+2. `UsersService.createUser()` emits `user.created` event.
+3. `UserCreatedListener` listens to it and logs:
+
+```text
+[Nest] 12345  -  New user created: randa@example.com (ID: 1696095678912)
+```
+
+4. Optional: You could also trigger emails, notifications, or other async tasks.
+   
+
 ### Compression
 
 Enable response compression for better performance.
