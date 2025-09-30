@@ -35,6 +35,7 @@
 - [Caching](#caching)
 - [Serialization](#serialization)
 - [Versioning](#versioning)
+- [Event](#event)
 - [Compression](#compression)
 - [HTTP Module](#http-module)
 
