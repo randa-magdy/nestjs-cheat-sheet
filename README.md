@@ -3092,6 +3092,8 @@ Implement rate limiting to prevent abuse.
 
 **Key Features:** Request throttling, custom limits
 
+**Example 1 - Single Throttler**
+
 ```typescript
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 
@@ -3117,6 +3119,48 @@ findAll() {
   return [];
 }
 ```
+
+**Example 2 - Multiple Throttler**
+
+```typescript
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+
+@Module({
+  imports: [
+    ThrottlerModule.forRoot([
+      {
+        name: 'short',
+        ttl: 1000,
+        limit: 3,
+      },
+      {
+        name: 'medium',
+        ttl: 10000,
+        limit: 20
+      },
+      {
+        name: 'long',
+        ttl: 60000,
+        limit: 100
+      }
+    ]),
+  ],
+})
+export class AppModule {}
+
+// Usage
+@UseGuards(ThrottlerGuard)
+@Controller()
+export class AppController {}
+
+// Custom rate limiting
+@Throttle(3, 60) // 3 requests per 60 seconds
+@Get()
+findAll() {
+  return [];
+}
+```
+
 
 ## 📊 Visual Diagrams
 
