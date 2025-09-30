@@ -3104,6 +3104,12 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
       limit: 10,
     }),
   ],
+providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard, // injects dependencies automatically
+    },
+  ],
 })
 export class AppModule {}
 
@@ -3144,6 +3150,12 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
         limit: 100
       }
     ]),
+  ],
+providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard, // injects dependencies automatically
+    },
   ],
 })
 export class AppModule {}
