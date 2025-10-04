@@ -196,12 +196,19 @@ export class LoggerMiddleware implements NestMiddleware {
   }
 }
 
-// Apply middleware
-export class AppModule implements NestModule {
+// In case middleware is applied to a specific route
+export class CatModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer
       .apply(LoggerMiddleware)
       .forRoutes('cats');
+  }
+}
+
+// In case middleware is applied globally for all routes
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(LoggerMiddleware).forRoutes('*');
   }
 }
 ```
